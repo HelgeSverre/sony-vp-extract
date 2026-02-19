@@ -1,0 +1,10 @@
+node_modules/
+bun.lock
+.DS_Store
+
+# Voice pack binaries and extracted MP3s are copyrighted by Sony
+# The CLI auto-downloads them from Sony's public CDN when needed
+voice-packs/
+extracted/
+*.bin
+*.mp3
