@@ -1,0 +1,24 @@
+{
+  "name": "sony-vp-extract",
+  "version": "1.0.0",
+  "description": "Decrypt and extract Sony WH-1000XM4 voice guidance MP3 prompts",
+  "type": "module",
+  "bin": {
+    "sony-vp-extract": "cli/extract.ts"
+  },
+  "scripts": {
+    "extract": "bun run cli/extract.ts --all voice-packs/ extracted/",
+    "download": "bun run cli/extract.ts --download voice-packs/",
+    "info": "bun run cli/extract.ts --info"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "lzma": "^2.3.2"
+  }
+}
