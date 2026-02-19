@@ -8,3 +8,4 @@ voice-packs/
 extracted/
 *.bin
 *.mp3
+firmware_dump.bin

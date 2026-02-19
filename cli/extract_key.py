@@ -92,13 +92,13 @@ class RaceClient:
         self.recv_buf = bytearray()
         self.expected_length = None
 
-    async def read_flash_page(self, address: int) -> bytes | None:
+    async def read_flash_page(self, address: int, storage_type: int = 0x00) -> bytes | None:
         self.response_ready.clear()
         self.last_response = None
         self.recv_buf = bytearray()
         self.expected_length = None
 
-        payload = struct.pack("<BBI", 0x01, 0x01, address)
+        payload = struct.pack("<BBI", storage_type, 0x01, address)
         length = len(payload) + 2
         packet = struct.pack("<BBHH", RACE_HEAD, RACE_CMD_EXPECTS_RESPONSE, length, CMD_STORAGE_PAGE_READ) + payload
 
@@ -167,51 +167,57 @@ async def dump_firmware(output_path: str | None = None) -> bytes:
         race = RaceClient(client, tx_char, rx_char)
         await race.start()
 
-        # Dump ~60KB of CM4 firmware (partition at 0x08002000, but page reads
-        # use the storage_type=0x01 which maps to partition 1 at offset 0x0)
+        # CM4 firmware lives at physical flash address 0x08002000.
+        # With storage_type=0x00 (physical addressing), we read from 0x2000.
+        flash_base = 0x2000
         total_size = 60 * 1024
         chunk_size = 225  # max payload per BLE response
         num_reads = (total_size + chunk_size - 1) // chunk_size
 
-        print(f"dumping {total_size // 1024}KB of CM4 firmware ({num_reads} reads)...")
-        firmware = bytearray()
+        print(f"dumping {total_size // 1024}KB of CM4 firmware from 0x{flash_base:04X} ({num_reads} reads)...")
         t_start = time.time()
         fails = 0
+        bytes_written = 0
 
-        for i in range(num_reads):
-            addr = i * chunk_size
-            page = await race.read_flash_page(addr)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "wb") as f:
+            for i in range(num_reads):
+                addr = flash_base + i * chunk_size
+                page = await race.read_flash_page(addr, storage_type=0x00)
 
-            if page is None:
-                firmware.extend(b"\xff" * chunk_size)
-                fails += 1
-                if fails >= 10:
-                    print("\nerror: too many consecutive failures, aborting")
-                    sys.exit(1)
-            else:
-                firmware.extend(page[:chunk_size])
-                fails = 0
+                if page is None:
+                    chunk = b"\xff" * chunk_size
+                    fails += 1
+                    if fails >= 10:
+                        print("\nerror: too many consecutive failures, aborting")
+                        break
+                else:
+                    chunk = page[:chunk_size]
+                    fails = 0
 
-            if i % 16 == 0 or i == num_reads - 1:
-                pct = len(firmware) / total_size * 100
-                elapsed = time.time() - t_start
-                rate = (i + 1) / elapsed if elapsed > 0 else 0
-                eta = (num_reads - i - 1) / rate if rate > 0 else 0
-                print(f"\r  [{pct:5.1f}%] {len(firmware) // 1024}KB | {rate:.1f} reads/s | ETA {eta:.0f}s", end="", flush=True)
+                remaining = total_size - bytes_written
+                write_len = min(len(chunk), remaining)
+                f.write(chunk[:write_len])
+                f.flush()
+                bytes_written += write_len
+
+                if bytes_written >= total_size:
+                    break
+
+                if i % 16 == 0 or i == num_reads - 1:
+                    pct = bytes_written / total_size * 100
+                    elapsed = time.time() - t_start
+                    rate = (i + 1) / elapsed if elapsed > 0 else 0
+                    eta = (num_reads - i - 1) / rate if rate > 0 else 0
+                    print(f"\r  [{pct:5.1f}%] {bytes_written // 1024}KB | {rate:.1f} reads/s | ETA {eta:.0f}s", end="", flush=True)
 
         await race.stop()
 
-    firmware = bytes(firmware[:total_size])
     elapsed = time.time() - t_start
-    print(f"\n  done in {elapsed:.0f}s ({len(firmware)} bytes)")
+    print(f"\n  done in {elapsed:.0f}s ({bytes_written} bytes)")
+    print(f"  saved to {output_path}")
 
-    if output_path:
-        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-        with open(output_path, "wb") as f:
-            f.write(firmware)
-        print(f"  saved to {output_path}")
-
-    return firmware
+    return open(output_path, "rb").read()
 
 
 # ── Key search ───────────────────────────────────────────────────────────────
