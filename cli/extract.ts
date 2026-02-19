@@ -74,6 +74,105 @@ function fmt(bytes: number) {
     : `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+// --- key extraction ---
+
+const AES_SBOX = Buffer.from([0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76]);
+
+function findAscii16Strings(fw: Buffer): { offset: number; value: Buffer }[] {
+  const results: { offset: number; value: Buffer }[] = [];
+  for (let i = 0; i < fw.length - 16; i++) {
+    let allPrintable = true;
+    for (let j = 0; j < 16; j++) {
+      const b = fw[i + j];
+      if (b <= 32 || b >= 127) { allPrintable = false; break; }
+    }
+    if (allPrintable && i + 16 < fw.length && fw[i + 16] === 0x00) {
+      results.push({ offset: i, value: fw.subarray(i, i + 16) });
+    }
+  }
+  return results;
+}
+
+function tryKeyIvPair(key: Buffer, iv: Buffer, ciphertext: Buffer): boolean {
+  try {
+    const decipher = createDecipheriv("aes-128-cbc", key, iv);
+    decipher.setAutoPadding(false);
+    const dec = decipher.update(ciphertext.subarray(0, 16));
+    if (dec[0] !== 0x5d) return false; // LZMA props: lc=3, lp=0, pb=2
+    const dictSize = dec.readUInt32LE(1);
+    return dictSize === 16384;
+  } catch { return false; }
+}
+
+async function extractKey(firmwarePath: string) {
+  const fw = readFileSync(firmwarePath);
+  console.log();
+  console.log(chalk.bold("extract-key") + chalk.dim(` — searching ${basename(firmwarePath)} (${fmt(fw.length)})`));
+  console.log(chalk.dim("─".repeat(44)));
+
+  const sboxIdx = fw.indexOf(AES_SBOX);
+  if (sboxIdx >= 0) {
+    console.log(`  AES S-box       ${chalk.green("found")} at 0x${sboxIdx.toString(16).toUpperCase()}`);
+  } else {
+    console.log(`  AES S-box       ${chalk.yellow("not found")} (firmware may be incomplete)`);
+  }
+
+  const candidates = findAscii16Strings(fw);
+  console.log(`  candidates      ${chalk.cyan(String(candidates.length))} null-terminated 16-byte ASCII strings`);
+
+  if (candidates.length < 2) {
+    console.log(chalk.red("\n  not enough candidates to test"));
+    process.exit(1);
+  }
+
+  // Get voice pack ciphertext for validation
+  let body: Buffer;
+  const localPath = "voice-packs/VP_english_UPG_03.bin";
+  if (existsSync(localPath) && statSync(localPath).size > 0x1100) {
+    body = readFileSync(localPath).subarray(0x1000, 0x1000 + 4096);
+  } else {
+    console.log(chalk.dim("  downloading voice pack sample for validation..."));
+    const res = await fetch(VOICE_PACK_URLS.english);
+    if (!res.ok) { console.error(chalk.red("  failed to download voice pack")); process.exit(1); }
+    const data = Buffer.from(await res.arrayBuffer());
+    mkdirSync("voice-packs", { recursive: true });
+    writeFileSync(localPath, data);
+    body = data.subarray(0x1000, 0x1000 + 4096);
+  }
+
+  console.log(chalk.dim("  testing key/IV pairs..."));
+
+  for (let ci = 0; ci < candidates.length; ci++) {
+    const a = candidates[ci];
+    for (let j = ci + 1; j < Math.min(ci + 6, candidates.length); j++) {
+      const b = candidates[j];
+      if (tryKeyIvPair(b.value, a.value, body)) {
+        printKeyResult(b.value, a.value, b.offset, a.offset);
+        return;
+      }
+      if (tryKeyIvPair(a.value, b.value, body)) {
+        printKeyResult(a.value, b.value, a.offset, b.offset);
+        return;
+      }
+    }
+  }
+
+  console.log(chalk.red("\n  no valid AES key found in this firmware dump."));
+  process.exit(1);
+}
+
+function printKeyResult(key: Buffer, iv: Buffer, keyOff: number, ivOff: number) {
+  const base = 0x04200000;
+  console.log();
+  console.log(chalk.dim("  " + "═".repeat(42)));
+  console.log(`  ${chalk.bold("AES-128-CBC Key:")}  ${chalk.green(key.toString("ascii"))}`);
+  console.log(`  ${chalk.bold("AES-128-CBC IV:")}   ${chalk.green(iv.toString("ascii"))}`);
+  console.log(chalk.dim("  " + "═".repeat(42)));
+  console.log(chalk.dim(`  key offset: 0x${keyOff.toString(16).toUpperCase()}  (runtime: 0x${(base + keyOff).toString(16).toUpperCase()})`));
+  console.log(chalk.dim(`  IV offset:  0x${ivOff.toString(16).toUpperCase()}  (runtime: 0x${(base + ivOff).toString(16).toUpperCase()})`));
+  console.log();
+}
+
 // --- commands ---
 
 async function showInfo(filepath: string) {
@@ -177,16 +276,21 @@ ${chalk.dim("usage:")}
   bun run cli/extract.ts ${chalk.cyan("--all")} ${chalk.dim("[input-dir] [output-dir]")}
   bun run cli/extract.ts ${chalk.cyan("--info")} ${chalk.dim("<file.bin>")}
   bun run cli/extract.ts ${chalk.cyan("--download")} ${chalk.dim("[output-dir]")}
+  bun run cli/extract.ts ${chalk.cyan("--extract-key")} ${chalk.dim("<firmware.bin>")}
 
 ${chalk.dim("examples:")}
   bun run cli/extract.ts voice-packs/VP_english_UPG_03.bin extracted/
   bun run cli/extract.ts --all voice-packs/ extracted/
   bun run cli/extract.ts --all
+  bun run cli/extract.ts --extract-key firmware_dump.bin
 `);
   process.exit(0);
 }
 
-if (args[0] === "--info") {
+if (args[0] === "--extract-key") {
+  if (!args[1]) { console.error(chalk.red("usage: --extract-key <firmware.bin>")); process.exit(1); }
+  await extractKey(args[1]);
+} else if (args[0] === "--info") {
   await showInfo(args[1]);
 } else if (args[0] === "--download") {
   await downloadAll(args[1] || "voice-packs");

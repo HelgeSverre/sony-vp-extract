@@ -127,11 +127,30 @@ For the Python-only extractor:
 - Python 3
 - `pycryptodome` (`pip install pycryptodome`)
 
+## Extract the Key Yourself
+
+If you want to verify the key independently, you can dump the firmware from your own paired WH-1000XM4 headphones and extract the key from it:
+
+```bash
+# Step 1: Dump firmware over BLE (requires bleak + pycryptodome)
+pip install bleak pycryptodome
+python3 cli/extract_key.py
+
+# Step 2: Or if you already have a firmware dump:
+python3 cli/extract_key.py --firmware your_dump.bin
+
+# Bun alternative (firmware dump required):
+bun run cli/extract.ts --extract-key your_dump.bin
+```
+
+The tool searches the firmware binary for the AES S-box, finds adjacent null-terminated 16-byte ASCII strings, then validates each candidate pair by attempting to decrypt a voice pack and checking for valid LZMA headers.
+
 ## Project Structure
 
 ```
 ├── cli/
-│   └── extract.ts          # Bun CLI tool
+│   ├── extract.ts          # Bun CLI tool (extract + key finder)
+│   └── extract_key.py      # Python BLE firmware dumper + key finder
 ├── docs/
 │   └── WRITEUP.md          # Full technical writeup
 ├── voice-packs/            # Downloaded .bin files (gitignored)
