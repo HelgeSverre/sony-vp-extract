@@ -15,6 +15,9 @@ The AES-128-CBC key was extracted by dumping the headphones' Airoha MT2811 firmw
 ## Quick Start
 
 ```bash
+# Install Bun (if not already installed)
+curl -fsSL https://bun.sh/install | bash
+
 git clone https://github.com/helgesverre/reverse-sony-headphones.git
 cd reverse-sony-headphones
 bun install
@@ -41,7 +44,17 @@ bun run cli/extract.ts --download [output-dir]
 
 ### Python alternative
 
+Using [uv](https://docs.astral.sh/uv/):
+
 ```bash
+uv run --with pycryptodome extract_all.py voice-packs/ extracted/
+```
+
+Or with a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install pycryptodome
 python3 extract_all.py voice-packs/ extracted/
 ```
@@ -132,7 +145,7 @@ For the Python-only extractor:
 
 This project documents security research conducted for educational purposes on personally owned hardware. The headphones analyzed were paired and connected normally — no unauthorized access was involved.
 
-The voice pack `.bin` files and extracted MP3 prompts are copyrighted by Sony Corporation and are **not included** in this repository. The CLI tool downloads them directly from Sony's public CDN at runtime. This tool is provided for research and interoperability purposes only.
+The voice pack `.bin` files and extracted MP3 prompts are copyrighted by Sony Corporation and are **not included** in this repository. The CLI tool downloads them directly from Sony's public CDN at runtime. Do not redistribute decrypted voice packs or extracted MP3 files. This tool is provided for research and interoperability purposes only.
 
 ## License
 

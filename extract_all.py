@@ -79,7 +79,7 @@ def main():
 
     total = 0
     for fname in bin_files:
-        lang = fname.replace("VP_", "").replace("_UPG_03.bin", "")
+        lang = fname.replace("VP_", "").split("_UPG_")[0]
         lang_dir = os.path.join(output_dir, lang)
         count = extract_voice_pack(os.path.join(input_dir, fname), lang_dir)
         total += count

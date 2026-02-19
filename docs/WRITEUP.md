@@ -47,15 +47,15 @@ These are factory/debug commands that remain accessible in the production firmwa
 
 ### Flash Reads
 
-The `RACE_STORAGE_PAGE_READ` command (`0x0403`) accepts a page index and returns the contents of a 256-byte flash page. However, due to the BLE ATT MTU limit of 242 bytes (after GATT overhead), each response is truncated to **225 bytes** of payload. To reconstruct full pages, you need to account for this truncation and stitch the results together.
+The `RACE_STORAGE_PAGE_READ` command (`0x0403`) accepts a page index and returns the contents of a 256-byte flash page. Due to BLE ATT MTU limits (242 bytes after GATT overhead), each response contains up to **225 bytes** of payload data. Dumping the firmware requires iterating over page indices and concatenating the returned data according to the protocol's framing.
 
-A simple read loop looks conceptually like this:
+A simplified read loop looks conceptually like this:
 
 ```python
 for page in range(0, total_pages):
     write_characteristic(TX, race_cmd(0x0403, page))
     data = await notification(RX)
-    flash_dump.extend(data[:225])
+    flash_dump.extend(data)
 ```
 
 ### RAM Reads
@@ -74,7 +74,7 @@ The first thing we dumped was the flash partition table, which revealed the layo
 | 3   | `0x081B9000` | 2 MB   | FOTA (firmware-over-the-air)    |
 | 6   | `0x0C510000` | 6 MB   | External Flash (voice guidance) |
 
-Partition 1 — the CM4 firmware — was the prize. At 64 KB, it was small enough to dump via flash page reads in a reasonable time. Partition 6, the voice guidance region on external flash, contained the currently-installed language pack.
+Partition 1 — the CM4 firmware — was the prize. The partition is 64 KB, and we managed to dump 59 KB of it via flash page reads — enough to cover the entire `.rodata` section containing the key. Partition 6, the voice guidance region on external flash, contained the currently-installed language pack.
 
 We dumped the CM4 firmware in its entirety. Now came the hard part: finding the decryption key.
 
@@ -182,7 +182,7 @@ Offset 0xD53A: 65 69 62 6F 68 6A 65 43 68 36 75 65 67 61 68 66
                 e  i  b  o  h  j  e  C  h  6  u  e  g  a  h  f
 ```
 
-There they are. Hardcoded in the firmware as plain ASCII null-terminated strings, sitting adjacent to each other in the read-only data section — the IV immediately followed by the key:
+There they are. Hardcoded in the firmware as plain ASCII null-terminated strings, sitting adjacent to each other in the read-only data section — the IV at `0xD529`, followed by a NUL terminator byte at `0xD539`, then the key at `0xD53A`:
 
 ```
 AES-128-CBC Key: eibohjeCh6uegahf
