@@ -1,6 +1,8 @@
 # Sony WH-1000XM4 Voice Pack Extractor
 
 ![Sony WH-1000XM4](https://img.shields.io/badge/Sony%20WH--1000XM4-000000?style=flat-square&logo=sony)
+![Voice Pack Extractor](https://img.shields.io/badge/Voice%20Pack%20Extractor-blue?style=flat-square)
+![RACE Protocol](https://img.shields.io/badge/Airoha%20RACE%20Protocol-444?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
 Decrypt and extract the voice guidance MP3 prompts from Sony WH-1000XM4 encrypted firmware files.
