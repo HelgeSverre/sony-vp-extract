@@ -447,6 +447,8 @@ Starting from a pair of headphones, a BLE adapter, and an AI coding agent, the p
 
 No specialized hardware, no soldering, no JTAG. The heavy lifting — disassembly, binary analysis, scripting — was done by Ampcode with me steering. What would traditionally take days of manual work in Ghidra was done in an afternoon through iterative prompting.
 
+That's arguably the more interesting takeaway here: the barrier to this kind of analysis has dropped substantially. What used to require specialized RE skills and days of manual work in Ghidra can now be done in an afternoon by someone who knows what questions to ask.
+
 The key and IV, for reference:
 
 ```
