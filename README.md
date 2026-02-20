@@ -45,10 +45,10 @@ bun run cli/extract.ts --download [output-dir]
 ### Python alternative
 
 ```bash
-uv run extract_all.py voice-packs/ extracted/
+uv run extract_all.py
 ```
 
-Dependencies are declared inline ([PEP 723](https://peps.python.org/pep-0723/)) — `uv run` installs them automatically.
+Downloads from Sony CDN + decrypts + extracts — all in one command. Dependencies are declared inline ([PEP 723](https://peps.python.org/pep-0723/)) — `uv run` handles everything automatically.
 
 ## Available Languages
 
