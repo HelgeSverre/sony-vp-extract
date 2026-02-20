@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["bleak", "pycryptodome"]
+# ///
 """
 Extract the AES-128-CBC key from your own Sony WH-1000XM4 headphones.
 
@@ -7,18 +11,15 @@ containing the FOTA decryption key via the RACE protocol, then searches for
 the AES key and IV by finding adjacent null-terminated ASCII strings that
 successfully decrypt a voice pack body into valid LZMA data.
 
-Requirements:
-    pip install bleak pycryptodome
-
 Usage:
     # Full pipeline: dump firmware over BLE and extract key
-    python3 cli/extract_key.py
+    uv run cli/extract_key.py
 
     # Extract key from an existing firmware dump
-    python3 cli/extract_key.py --firmware firmware.bin
+    uv run cli/extract_key.py --firmware firmware.bin
 
     # Dump firmware only (no key search)
-    python3 cli/extract_key.py --dump-only -o firmware.bin
+    uv run cli/extract_key.py --dump-only -o firmware.bin
 """
 import argparse
 import asyncio
@@ -315,9 +316,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 examples:
-  python3 cli/extract_key.py                          # BLE dump + extract key
-  python3 cli/extract_key.py --firmware firmware.bin   # find key in existing dump
-  python3 cli/extract_key.py --dump-only -o fw.bin     # dump firmware only
+  uv run cli/extract_key.py                          # BLE dump + extract key
+  uv run cli/extract_key.py --firmware firmware.bin   # find key in existing dump
+  uv run cli/extract_key.py --dump-only -o fw.bin     # dump firmware only
 """,
     )
     parser.add_argument("--firmware", "-f", help="path to existing firmware dump (skip BLE)")

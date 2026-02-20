@@ -1,6 +1,6 @@
 # Extracting Encrypted Voice Guidance from Sony WH-1000XM4 Headphones
 
-> **Disclaimer:** This document describes security research conducted for educational purposes on personally owned hardware. The headphones were paired and connected normally to a phone — no unauthorized access was involved. The techniques described involve analyzing publicly available firmware distributed by Sony's CDN. No authentication mechanisms were bypassed on remote servers, and no proprietary services were harmed.
+> **Note:** Everything described here was done on my own paired headphones, using publicly available firmware from Sony's CDN. No authentication mechanisms were bypassed on remote servers.
 
 ---
 
@@ -8,17 +8,19 @@
 
 The Sony WH-1000XM4 are among the most popular wireless noise-cancelling headphones ever made. Like most modern Bluetooth audio devices, they ship with a set of voice guidance prompts — the familiar "Power on", "Bluetooth connected", "Battery fully charged" phrases that narrate the headphone's state transitions. These prompts are stored as compressed, encrypted firmware images and distributed via Sony's update CDN as `.bin` files.
 
-This writeup describes how we reverse engineered the headphones' Bluetooth SoC firmware, discovered an unauthenticated BLE command protocol, dumped the flash memory over the air, located a hardcoded AES-128-CBC key in the firmware binary, and used it to decrypt and extract the voice guidance audio from all ten available language packs.
+I wanted to see if I could extract these prompts — partly out of curiosity about how the update system works, and partly as an experiment in using AI-assisted tooling for hardware reverse engineering. The bulk of the analysis, scripting, and binary exploration described here was done with [Ampcode](https://ampcode.com), an AI coding agent, with me directing the investigation and providing the hardware. Prior research on the Airoha RACE protocol and existing APK teardowns provided the initial footholds.
+
+This writeup describes the process: dumping the headphones' Bluetooth SoC firmware over BLE, locating an AES-128-CBC key in the binary, and using it to decrypt and extract the voice guidance audio from all ten available language packs.
 
 ---
 
-## Part 1: The Discovery — An Open Door Over BLE
+## Part 1: The RACE Protocol
 
 ### The Airoha MT2811
 
-Cracking open the WH-1000XM4 (figuratively — we never needed to) reveals that Sony chose the **Airoha MT2811** Bluetooth SoC, a MediaTek subsidiary's chip built around an ARM Cortex-M4 core. Airoha provides an SDK to its OEM customers that includes a protocol called **RACE** — Realtek/Airoha Command Extensions — designed for factory testing, calibration, and firmware updates.
+The WH-1000XM4 uses the **Airoha MT2811** Bluetooth SoC, a MediaTek subsidiary's chip built around an ARM Cortex-M4 core. Airoha provides an SDK to its OEM customers that includes a protocol called **RACE** — Realtek/Airoha Command Extensions — designed for factory testing, calibration, and firmware updates.
 
-The interesting part? The RACE protocol is exposed over **BLE GATT**. While we connected to our own paired headphones, prior research has shown that the RACE service on Airoha-based devices does not enforce pairing or authentication — the commands work the same regardless.
+The RACE protocol is exposed over **BLE GATT**. Prior research on other Airoha-based devices has documented this interface extensively. On my own paired headphones, the commands were accessible without any additional setup.
 
 ### The RACE GATT Service
 
@@ -32,14 +34,12 @@ Characteristics:
   RX (Notify): 2a6b6575-faf6-418c-923f-ccd63a56d955
 ```
 
-After subscribing to the RX characteristic for notifications, RACE commands can be sent on the TX characteristic. The Agent device supports the full command set, including two commands that turned out to be critical:
+After subscribing to the RX characteristic for notifications, RACE commands can be sent on the TX characteristic. The Agent device supports the full command set, including two commands that are relevant here:
 
 | Command                  | Code     | Description                                |
 | ------------------------ | -------- | ------------------------------------------ |
 | `RACE_STORAGE_PAGE_READ` | `0x0403` | Read a 256-byte page from physical flash   |
 | `RACE_READ_ADDRESS`      | `0x1680` | Read 4 bytes from an arbitrary RAM address |
-
-These are factory/debug commands that remain accessible in the production firmware.
 
 ---
 
@@ -64,7 +64,7 @@ The `RACE_READ_ADDRESS` command (`0x1680`) is more limited — it reads exactly 
 
 ### The Partition Table
 
-The first thing we dumped was the flash partition table, which revealed the layout of the MT2811's storage:
+The first thing I dumped was the flash partition table, which revealed the layout of the MT2811's storage:
 
 | #   | Address      | Size   | Description                     |
 | --- | ------------ | ------ | ------------------------------- |
@@ -74,9 +74,7 @@ The first thing we dumped was the flash partition table, which revealed the layo
 | 3   | `0x081B9000` | 2 MB   | FOTA (firmware-over-the-air)    |
 | 6   | `0x0C510000` | 6 MB   | External Flash (voice guidance) |
 
-Partition 1 — the CM4 firmware — was the prize. The partition is 64 KB, and we managed to dump 59 KB of it via flash page reads — enough to cover the entire `.rodata` section containing the key. Partition 6, the voice guidance region on external flash, contained the currently-installed language pack.
-
-We dumped the CM4 firmware in its entirety. Now came the hard part: finding the decryption key.
+Partition 1 — the CM4 firmware — is the one that matters here. The partition is 64 KB, and I was able to dump 59 KB of it via flash page reads — enough to cover the entire `.rodata` section. Partition 6, the voice guidance region on external flash, contained the currently-installed language pack.
 
 ---
 
@@ -84,7 +82,7 @@ We dumped the CM4 firmware in its entirety. Now came the hard part: finding the 
 
 ### Confirming AES in the Binary
 
-The first thing we looked for in the dumped firmware was the **AES S-box** — the 256-byte substitution table that is the fingerprint of any AES implementation. A simple byte-pattern search found it at firmware offset **`0x81F4`**:
+The first thing to look for in the dumped firmware was the **AES S-box** — the 256-byte substitution table that is the fingerprint of any AES implementation. A simple byte-pattern search found it at firmware offset **`0x81F4`**:
 
 ```
 Offset 0x81F4:
@@ -98,7 +96,7 @@ This is the standard AES forward S-box. Its presence confirmed that the firmware
 
 ### Determining the Runtime Base Address
 
-The CM4 firmware is stored in flash but executes via **XIP (eXecute In Place)** — the flash is memory-mapped into the processor's address space at a fixed base address. To make sense of the firmware's pointers and cross-references, we needed to determine this mapping.
+The CM4 firmware is stored in flash but executes via **XIP (eXecute In Place)** — the flash is memory-mapped into the processor's address space at a fixed base address. To make sense of the firmware's pointers and cross-references, this mapping needs to be determined.
 
 The ARM Cortex-M4 reset vector provides the clue. The very first instruction in the firmware is:
 
@@ -114,7 +112,7 @@ This loads the initial stack pointer from a literal pool entry 0x34 bytes ahead 
 0x0420A1E0
 ```
 
-These are code addresses — function pointers loaded during initialization. Since we know the firmware image is 64 KB starting at offset 0x00000000, and the addresses all begin with `0x0420xxxx`, the mapping is clear:
+These are code addresses — function pointers loaded during initialization. Since the firmware image is 64 KB starting at offset 0x00000000, and the addresses all begin with `0x0420xxxx`, the mapping is clear:
 
 ```
 Runtime base address: 0x04200000
@@ -126,7 +124,7 @@ With this mapping, every pointer in the firmware becomes a seekable offset: `fil
 
 ### Tracing the FOTA Decryption Path
 
-Now we could follow cross-references. We searched the firmware for interesting strings and found, among others:
+With this mapping, cross-references become traceable. Searching the firmware for interesting strings turned up, among others:
 
 ```
 "AES init"
@@ -317,47 +315,104 @@ Each extracted file is a standard **MP3** — 48 kHz sample rate, mono, approxim
 
 ---
 
-## Part 5: Observations and Takeaways
+## Part 5: The CDN Manifest Layer
 
-### The Security Model
+### Update Manifests
 
-The WH-1000XM4's security posture for voice guidance is essentially "encryption at rest with a shared key." The threat model appears designed to prevent casual copying of voice packs between headphone models — not to withstand any serious analysis. Several factors made extraction straightforward:
+Sony's update CDN hosts encrypted manifest files at predictable URLs following the pattern:
 
-1. **RACE commands in production firmware.** The RACE protocol's flash and RAM read commands are intended for factory testing but remain enabled in shipping firmware. On our paired device, they worked without restriction.
+```
+https://info.update.sony.net/HP002/VGIDLPB0401/info/info.xml
+```
 
-2. **Static, shared symmetric key.** Every WH-1000XM4 uses the same AES key and IV. There is no per-device key derivation, no key wrapping, no secure element involvement.
+These manifests use a **different** cryptographic scheme from the voice packs themselves. While voice packs use AES-128-CBC with a key derived from the headphone firmware, the manifests use **AES-128-ECB** with a key extracted from the Sony Sound Connect Android APK:
 
-3. **Key stored in plaintext.** The key is a readable ASCII string sitting in the firmware's `.rodata` section, immediately adjacent to the IV. No obfuscation, no whitebox crypto, no code armoring.
+```
+Manifest key: 4fa27999ffd08b1fe4d260d57b6d3c17
+Mode:         AES-128-ECB (no IV)
+```
 
-4. **Fixed IV for CBC mode.** Using the same IV for every encryption operation with the same key means that identical first blocks of plaintext will produce identical first blocks of ciphertext, leaking information about content similarity across files.
+### Manifest File Format
 
-### Why This Matters
+The encrypted manifest file has a plaintext header followed by the AES-encrypted body, separated by a double newline:
 
-This is not a critical vulnerability — no user data is at risk, and the voice prompts are not sensitive material. But it illustrates a pattern common in consumer electronics:
+```
+eaid:ENC0003              ← encryption scheme identifier
+daid:HAS0003              ← hash scheme identifier
+digest:<sha1_hex>         ← SHA-1 hash of the encrypted payload
+                          ← (blank line)
+<AES-128-ECB encrypted XML body>
+```
 
-- **Debug interfaces ship enabled in production.** The RACE protocol is clearly a development/factory tool. Its flash/RAM read commands probably should be disabled or restricted in production firmware.
+The `eaid` field identifies the encryption version (`ENC0003`), while `daid` identifies the integrity check method (`HAS0003` — SHA-1).
 
-- **Symmetric encryption without key management is not encryption.** If every device shares the same key and the key is readable from the device itself, the encryption provides no meaningful confidentiality.
+### Decrypted Manifest Contents
 
-- **Firmware files are publicly accessible.** The voice pack `.bin` files are hosted on Sony's CDN without any authentication, making them available to anyone who knows (or guesses) the URL pattern.
+After decryption, the manifest is a standard XML document describing available firmware distributions:
 
-### A Note on Airoha
+```xml
+<InformationFile LastUpdate="2020-03-19T11:41:20Z" Version="1.0">
+    <ControlConditions DefaultServiceStatus="open"/>
+    <ApplyConditions>
+        <ApplyCondition ApplyOrder="1" Force="false">
+            <Distributions>
+                <Distribution ID="FW"
+                    URI="https://info.update.sony.net/.../VP_english_UPG_03.bin"
+                    MAC="b754767733623779af2b9f0faf13f07be0c43593"
+                    Size="911456"
+                    Version="3"/>
+            </Distributions>
+        </ApplyCondition>
+    </ApplyConditions>
+</InformationFile>
+```
 
-The RACE protocol and its BLE exposure are part of Airoha's SDK, not Sony-specific code. This means the same unauthenticated command interface likely exists on **other products** built on the MT2811 and similar Airoha chips. The scope of this exposure may extend well beyond a single headphone model.
+Each `Distribution` entry contains the CDN download URL, a SHA-1 hash (`MAC`) for integrity verification, file size, and version number — everything needed to automate discovery and downloading of voice packs.
+
+### Two-Tier Key Architecture
+
+Sony uses two completely independent encryption keys for their update infrastructure:
+
+| Layer     | Algorithm    | Key Source         | Key                                |
+| --------- | ------------ | ------------------ | ---------------------------------- |
+| Manifests | AES-128-ECB  | Android APK        | `4fa27999ffd08b1fe4d260d57b6d3c17` |
+| Voice packs | AES-128-CBC | Headphone firmware | `eibohjeCh6uegahf` (+ IV)         |
+
+The manifest key protects the update metadata — which files exist, their URLs, and integrity hashes. The voice pack key protects the actual audio content. Neither key protects the other, so compromising one layer does not directly compromise the other. In practice, of course, the manifest key is sufficient to discover all download URLs, and the voice pack key is sufficient to decrypt them — meaning both layers must hold for the system to provide any confidentiality.
+
+Notably, the actual headphone firmware updates are not served through this CDN path at all. They are gated behind an authenticated configuration service (`hpc-cfgdst-ore-prd.pdp.bda.ndmdhs.com`) that requires app-specific headers from the Sony Sound Connect app — a meaningfully stronger distribution model than the unauthenticated voice pack CDN.
+
+---
+
+## Part 6: How It All Fits Together
+
+To summarize the system as observed:
+
+- The RACE protocol, part of Airoha's SDK, exposes flash and RAM read commands over BLE GATT. These are factory/debug commands that are present in the production firmware.
+- The AES-128-CBC key and IV are stored as plaintext ASCII strings in the CM4 firmware's `.rodata` section. The same key and IV are used across all WH-1000XM4 units and all language packs.
+- The same IV is reused for every file encrypted with the same key (standard CBC practice would use a random IV per operation).
+- The voice pack `.bin` files are hosted on Sony's CDN without authentication — the URLs follow a predictable pattern.
+- The CDN manifests use a separate AES-128-ECB key, embedded in the Android companion app.
+- Actual firmware updates (as opposed to voice packs) are distributed through a different, authenticated service.
+
+None of this is particularly unusual for consumer electronics. Voice prompts are low-value assets — the encryption likely exists to manage distribution and compatibility across headphone models rather than to protect the audio content itself. The RACE protocol is a standard part of Airoha's chipset SDK and is not Sony-specific.
 
 ---
 
 ## Conclusion
 
-Starting from nothing more than a pair of consumer headphones and a BLE adapter, we were able to:
+Starting from a pair of headphones, a BLE adapter, and an AI coding agent, the process went:
 
-1. **Discover** an unauthenticated debug protocol exposed over Bluetooth Low Energy
-2. **Dump** the complete CM4 firmware from flash — wirelessly, without physical access
-3. **Reverse engineer** the ARM Cortex-M4 binary to locate the FOTA decryption routine
-4. **Extract** the hardcoded AES-128-CBC key and IV from the firmware's data section
-5. **Decrypt and decompress** all ten language packs of voice guidance audio
+1. Connected to the headphones' RACE protocol over BLE (documented in prior research on Airoha devices)
+2. Dumped the CM4 firmware from flash — wirelessly, no physical access needed
+3. Located the AES S-box and traced the FOTA decryption routine in the ARM Cortex-M4 binary
+4. Extracted the AES-128-CBC key and IV from the firmware's data section
+5. Decrypted the CDN manifests using a second key found in the Android companion app
+6. Decrypted and decompressed all ten language packs into individual MP3 files
 
-The entire chain — from BLE scan to extracted MP3 files — requires no specialized hardware, no soldering, no JTAG, and no exploitation of memory corruption bugs. Just a laptop with a Bluetooth adapter and patience.
+The entire chain requires no specialized hardware, no soldering, no JTAG, and no exploitation of memory corruption. The heavy lifting — disassembly, binary analysis, scripting the decryption pipeline — was done by Ampcode with me steering the investigation. Most of the work that would traditionally require deep embedded systems expertise was handled through iterative prompting: "find the AES S-box", "trace the cross-references from this string", "write a decryption script for this format."
+
+That's arguably the more interesting takeaway here: the barrier to this kind of analysis has dropped substantially. What used to require specialized RE skills and days of manual work in Ghidra can now be done in an afternoon by someone who knows what questions to ask.
 
 The key and IV, for reference:
 
@@ -365,12 +420,6 @@ The key and IV, for reference:
 Key: eibohjeCh6uegahf
 IV:  miefeinuShu9eilo
 ```
-
-This work is published in the interest of security research and consumer electronics transparency. If you are a vendor shipping Airoha-based products, please audit your BLE GATT services for exposed RACE commands, and consider whether your firmware encryption keys deserve better protection than a plaintext string in `.rodata`.
-
----
-
-_This research was conducted independently on personally owned, paired hardware. No proprietary tools, leaked documentation, or insider access were used. All analysis was performed on commercially available hardware and publicly distributed firmware files._
 
 ---
 

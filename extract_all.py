@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pycryptodome"]
+# ///
 """
 Extract all Sony WH-1000XM4 voice packs into MP3 files.
 
 Usage:
-    python3 extract_all.py [input_dir] [output_dir]
-    python3 extract_all.py                              # defaults: voice-packs/ → extracted/
-    python3 extract_all.py voice-packs/ extracted/
+    uv run extract_all.py [input_dir] [output_dir]
+    uv run extract_all.py                              # defaults: voice-packs/ → extracted/
+    uv run extract_all.py voice-packs/ extracted/
 """
 import struct
 import lzma

@@ -44,20 +44,11 @@ bun run cli/extract.ts --download [output-dir]
 
 ### Python alternative
 
-Using [uv](https://docs.astral.sh/uv/):
-
 ```bash
-uv run --with pycryptodome extract_all.py voice-packs/ extracted/
+uv run extract_all.py voice-packs/ extracted/
 ```
 
-Or with a virtual environment:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pycryptodome
-python3 extract_all.py voice-packs/ extracted/
-```
+Dependencies are declared inline ([PEP 723](https://peps.python.org/pep-0723/)) — `uv run` installs them automatically.
 
 ## Available Languages
 
@@ -119,25 +110,19 @@ Full technical details: **[docs/WRITEUP.md](docs/WRITEUP.md)**
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) ≥ 1.0 (for the CLI tool)
-- Python 3 with `lzma` module (standard library, used for LZMA decompression)
-
-For the Python-only extractor:
-
-- Python 3
-- `pycryptodome` (`pip install pycryptodome`)
+- [Bun](https://bun.sh) ≥ 1.0 — for the TypeScript CLI
+- [uv](https://docs.astral.sh/uv/) — for the Python scripts (dependencies are resolved automatically via inline metadata)
 
 ## Extract the Key Yourself
 
 If you want to verify the key independently, you can dump the firmware from your own paired WH-1000XM4 headphones and extract the key from it:
 
 ```bash
-# Step 1: Dump firmware over BLE (requires bleak + pycryptodome)
-pip install bleak pycryptodome
-python3 cli/extract_key.py
+# Dump firmware over BLE and extract key
+uv run cli/extract_key.py
 
-# Step 2: Or if you already have a firmware dump:
-python3 cli/extract_key.py --firmware your_dump.bin
+# Or if you already have a firmware dump:
+uv run cli/extract_key.py --firmware your_dump.bin
 
 # Bun alternative (firmware dump required):
 bun run cli/extract.ts --extract-key your_dump.bin
