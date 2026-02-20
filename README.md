@@ -73,7 +73,7 @@ Downloads from Sony CDN + decrypts + extracts — all in one command. Dependenci
 │       ├── compression_type = 2        │
 │       ├── body_size                   │
 │       ├── decompressed_size (1 MB)    │
-│       └── SHA-256 hash                │
+│       └── SHA-256 of decompressed     │
 ├───────────────────────────────────────┤
 │  Body (offset 0x1000+)               │
 │  AES-128-CBC encrypted               │

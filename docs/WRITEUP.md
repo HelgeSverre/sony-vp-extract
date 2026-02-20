@@ -212,7 +212,7 @@ Each `.bin` file follows a consistent structure:
 │               ├─ compression_type (2)   │
 │               ├─ body_size              │
 │               ├─ decompressed_size      │
-│               └─ SHA-256 checksum       │
+│               └─ SHA-256 of decompressed│
 │                                         │
 ├─────────────────────────────────────────┤
 │              BODY (offset 0x1000+)      │
@@ -238,6 +238,8 @@ Each `.bin` file follows a consistent structure:
 │  └──────────────────────────────────┘    │
 └─────────────────────────────────────────┘
 ```
+
+As a minor curiosity, the TLV metadata block contains a `verion_string` field (tag `0x0013`) — the missing 's' is Sony's typo in the firmware, not a transcription error.
 
 A critical subtlety: the 32 random bytes at the start of the header are **not** the AES IV. They appear to be a unique file identifier or anti-caching nonce. The actual IV used for CBC decryption is the one hardcoded in the firmware — `miefeinuShu9eilo` — and is identical for every file.
 
@@ -460,7 +462,7 @@ IV:  miefeinuShu9eilo
 
 ## References & Prior Art
 
-1. **Airoha AB155x/AB1562 SDK** — The RACE (Realtek/Airoha Command Extensions) protocol is documented in Airoha's OEM SDK for the AB155x and AB156x Bluetooth SoC families. The MT2811 used in the WH-1000XM4 is part of this product line (MediaTek acquired Airoha in 2017).
+1. **Airoha AB155x/AB1562 SDK** — The RACE (Realtek/Airoha Command Extensions) protocol is documented in Airoha's OEM SDK for the AB155x and AB156x Bluetooth SoC families. The MT2811 used in the WH-1000XM4 is part of this product line (Airoha became a 100% subsidiary of MediaTek in 2017, after MediaTek first acquired a 42% stake from BenQ in 2007).
 
 2. **"RACE Command Protocol"** — Airoha SDK documentation describes `RACE_STORAGE_PAGE_READ` (0x0403) for reading flash pages and `RACE_READ_ADDRESS` (0x1680) for reading arbitrary memory-mapped addresses. These commands are part of the factory test and calibration interface.
 
