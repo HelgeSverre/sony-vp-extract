@@ -1,12 +1,12 @@
 # Extracting Encrypted Voice Guidance from Sony WH-1000XM4 Headphones
 
-> **Note:** Everything described here was done on my own paired headphones, using publicly available firmware from Sony's CDN. No authentication mechanisms were bypassed on remote servers.
+> **Note:** Everything described here was done on my own paired headphones. The voice pack files are publicly accessible on Sony's CDN; the firmware was dumped from the headphones themselves over BLE. No authentication mechanisms were bypassed on remote servers.
 
 ---
 
 ## Introduction
 
-The Sony WH-1000XM4 are among the most popular wireless noise-cancelling headphones ever made. Like most modern Bluetooth audio devices, they ship with a set of voice guidance prompts — the familiar "Power on", "Bluetooth connected", "Battery fully charged" phrases that narrate the headphone's state transitions. These prompts are stored as compressed, encrypted firmware images and distributed via Sony's update CDN as `.bin` files.
+The Sony WH-1000XM4 are among the most popular wireless noise-cancelling headphones ever made. Like most modern Bluetooth audio devices, they ship with a set of voice guidance prompts — the familiar "Power on", "Bluetooth connected", "Battery fully charged" phrases that narrate the headphone's state transitions. These prompts are stored as compressed, encrypted voice pack files and distributed via Sony's update CDN as `.bin` files.
 
 I wanted to see if I could extract these prompts — partly out of curiosity about how the update system works, and partly as an experiment in using AI-assisted tooling for hardware reverse engineering. The bulk of the analysis, scripting, and binary exploration described here was done with [Ampcode](https://ampcode.com), an AI coding agent, with me directing the investigation and providing the hardware. Prior research on the Airoha RACE protocol and existing APK teardowns provided the initial footholds.
 
@@ -24,7 +24,7 @@ The RACE protocol is exposed over **BLE GATT**. Prior research on other Airoha-b
 
 ### The RACE GATT Service
 
-With the WH-1000XM4 paired and connected, a BLE scan reveals two peripherals — the **Agent** (primary earbud) and the **Partner** (secondary). Both expose a custom GATT service:
+With the WH-1000XM4 paired and connected, a BLE scan reveals two peripherals — the **Agent** (primary) and the **Partner** (secondary). Both expose a custom GATT service:
 
 ```
 Service UUID: dc405470-a351-4a59-97d8-2e2e3b207fbb
@@ -193,7 +193,7 @@ Both are 16-character strings that look like randomly generated passphrases — 
 
 ## Part 4: Decrypting the Voice Packs
 
-### Obtaining the Firmware Files
+### Obtaining the Voice Pack Files
 
 Sony distributes voice guidance packs via their update CDN as `.bin` files, one per language. Ten language packs are available: **English, French, German, Spanish, Italian, Portuguese, Dutch, Swedish, Finnish, and Turkish**.
 
@@ -325,7 +325,7 @@ Sony's update CDN hosts encrypted manifest files at predictable URLs following t
 https://info.update.sony.net/HP002/VGIDLPB0401/info/info.xml
 ```
 
-These manifests use a **different** cryptographic scheme from the voice packs themselves. While voice packs use AES-128-CBC with a key derived from the headphone firmware, the manifests use **AES-128-ECB** with a key extracted from the Sony Sound Connect Android APK:
+These manifests use a **different** cryptographic scheme from the voice packs themselves. While voice packs use AES-128-CBC with a key found in the headphone firmware, the manifests use **AES-128-ECB** with a key extracted from the Sony Sound Connect Android APK:
 
 ```
 Manifest key: 4fa27999ffd08b1fe4d260d57b6d3c17
@@ -431,7 +431,7 @@ IV:  miefeinuShu9eilo
 
 3. **MediaTek MT2811 / Airoha AB1562** — The Bluetooth SoC used in Sony WH-1000XM4. Based on ARM Cortex-M4 with hardware AES support. Flash is memory-mapped for XIP (eXecute In Place) at base address `0x04200000`. Datasheet references: [MediaTek IoT](https://www.mediatek.com/products/iot).
 
-4. **Sony WH-1000XM4 Firmware Updates** — Voice guidance firmware is distributed via Sony's update CDN at `info.update.sony.net/HP002/VGIDLPBxxxx/`. The update manifests (`info.xml`) are AES-encrypted with a separate key (`4fa27999ffd08b1fe4d260d57b6d3c17`); the voice pack `.bin` files use the key documented in this research.
+4. **Sony WH-1000XM4 Voice Packs** — Voice guidance packs are distributed via Sony's update CDN at `info.update.sony.net/HP002/VGIDLPBxxxx/`. The update manifests (`info.xml`) are AES-encrypted with a separate key (`4fa27999ffd08b1fe4d260d57b6d3c17`); the voice pack `.bin` files use the key documented in this research.
 
 5. **ARM Cortex-M4 Technical Reference Manual** — ARM DDI 0439C. Describes the vector table format, Thumb-2 instruction encoding, and literal pool addressing used to trace the key loading in the disassembled firmware.
 
@@ -444,3 +444,7 @@ IV:  miefeinuShu9eilo
 9. **Capstone** — Disassembly framework used to analyze the ARM Thumb-2 firmware binary. [GitHub: capstone-engine/capstone](https://github.com/capstone-engine/capstone).
 
 10. **PyCryptodome** — Python cryptography library used for AES-128-CBC decryption of voice pack bodies. [GitHub: Legrandin/pycryptodome](https://github.com/Legrandin/pycryptodome).
+
+11. **ERNW — "Bluetooth Headphone Jacking"** — Full disclosure of Airoha RACE vulnerabilities (CVE-2025-20700, CVE-2025-20701, CVE-2025-20702) by ERNW, presented at 39C3 in December 2025. Documented the RACE protocol's BLE/Classic exposure, flash/RAM read commands, and link key extraction across 29 affected devices including the WH-1000XM4. [Blog post](https://insinuator.net/2025/12/bluetooth-headphone-jacking-full-disclosure-of-airoha-race-vulnerabilities/), [RACE Toolkit](https://github.com/auracast-research/race-toolkit).
+
+12. **airoha-firmware-parser** — Tool for unpacking Airoha FOTA firmware images, used to understand the firmware file format and partition structure. [GitHub: ramikg/airoha-firmware-parser](https://github.com/ramikg/airoha-firmware-parser).
