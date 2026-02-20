@@ -300,18 +300,53 @@ for i in range(num_entries):
         f.write(mp3_data)
 ```
 
-Each extracted file is a standard **MP3** — 48 kHz sample rate, mono, approximately 64 kbps. The prompts map to the headphones' state transitions:
+Each extracted file is a standard **MP3** — 48 kHz sample rate, mono, approximately 64 kbps. The 54 prompts cover state transitions, battery levels, and feature notifications:
 
-| Index | Prompt                                 |
-| ----- | -------------------------------------- |
-| 0     | "Power on"                             |
-| 1     | "Power off"                            |
-| 2     | "Bluetooth connected"                  |
-| 3     | "Bluetooth disconnected"               |
-| 4     | "Battery fully charged"                |
-| 5     | "Battery about 70%"                    |
-| 6     | "Low battery, please recharge headset" |
-| ...   | _(54 prompts total)_                   |
+| Index | Prompt                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| 0     | "Power on"                                                                                      |
+| 1     | "Power off"                                                                                     |
+| 2     | "Bluetooth pairing"                                                                             |
+| 3     | "Bluetooth connected"                                                                           |
+| 4     | "Bluetooth disconnected"                                                                        |
+| 5     | "Please recharge headset. Power off"                                                            |
+| 6     | "Noise canceling"                                                                               |
+| 7     | "Ambient Sound Control off"                                                                     |
+| 8     | "Ambient sound"                                                                                 |
+| 9     | "The Google Assistant is not available during update. Please wait a moment until the update completes" |
+| 10–14 | _(notification tones)_                                                                          |
+| 15    | "Battery fully charged"                                                                         |
+| 16    | "Battery about 70%"                                                                             |
+| 17    | "Battery about 50%"                                                                             |
+| 18    | "Battery about 20%"                                                                             |
+| 19–20 | _(notification tones)_                                                                          |
+| 21    | "The Google Assistant is not connected"                                                         |
+| 22–23 | _(notification tones)_                                                                          |
+| 24    | "Either your mobile device isn't connected; or you need to open the Alexa App and try again"    |
+| 25–26 | _(notification tones)_                                                                          |
+| 27    | _(unknown — short speech, possibly assistant-related)_                                          |
+| 28    | "Battery about 90%"                                                                             |
+| 29    | "Battery about 80%"                                                                             |
+| 30    | "Battery about 60%"                                                                             |
+| 31    | "Battery about 40%"                                                                             |
+| 32    | "Battery about 30%"                                                                             |
+| 33    | "Battery about 10%"                                                                             |
+| 34    | "Low battery, please recharge headset"                                                          |
+| 35    | "Optimizer start"                                                                               |
+| 36    | "Optimizer finished"                                                                            |
+| 37    | _(notification tone)_                                                                           |
+| 38    | _(unknown — short speech)_                                                                      |
+| 39–42 | _(notification tones)_                                                                          |
+| 43    | "Speak-to-chat activated"                                                                       |
+| 44    | "Speak-to-chat deactivated"                                                                     |
+| 45–46 | _(notification tones)_                                                                          |
+| 47    | "Bluetooth Device 1 connected"                                                                  |
+| 48    | "Bluetooth Device 1 disconnected"                                                               |
+| 49    | "Bluetooth Device 2 connected"                                                                  |
+| 50    | "Bluetooth Device 2 disconnected"                                                               |
+| 51    | "Bluetooth Device 1 replaced"                                                                   |
+| 52    | "Bluetooth Device 2 replaced"                                                                   |
+| 53    | "Bluetooth 2nd device connected"                                                                |
 
 ---
 
