@@ -6,7 +6,7 @@
 
 ## Introduction
 
-The Sony WH-1000XM4 are among the most popular wireless noise-cancelling headphones ever made. Like most modern Bluetooth audio devices, they ship with a set of voice guidance prompts — the familiar "Power on", "Bluetooth connected", "Battery fully charged" phrases that narrate the headphone's state transitions. These prompts are stored as compressed, encrypted voice pack files and distributed via Sony's update CDN as `.bin` files.
+The Sony WH-1000XM4, like most modern Bluetooth audio devices, ships with a set of voice guidance prompts — "Power on", "Bluetooth connected", "Battery fully charged" and so on. These prompts are stored as compressed, encrypted voice pack files and distributed via Sony's update CDN as `.bin` files.
 
 I wanted to see if I could extract these prompts — partly out of curiosity about how the update system works, and partly as an experiment in using AI-assisted tooling for hardware reverse engineering. The bulk of the analysis, scripting, and binary exploration described here was done with [Ampcode](https://ampcode.com), an AI coding agent, with me directing the investigation and providing the hardware. Prior research on the Airoha RACE protocol and existing APK teardowns provided the initial footholds.
 
@@ -92,7 +92,7 @@ b7 fd 93 26 36 3f f7 cc 34 a5 e5 f1 71 d8 31 15
 ...
 ```
 
-This is the standard AES forward S-box. Its presence confirmed that the firmware contains a native AES implementation — not a surprise for a chip that handles encrypted FOTA updates, but a necessary confirmation before investing further effort.
+This is the standard AES forward S-box, confirming the firmware contains a native AES implementation.
 
 ### Determining the Runtime Base Address
 
@@ -180,14 +180,14 @@ Offset 0xD53A: 65 69 62 6F 68 6A 65 43 68 36 75 65 67 61 68 66
                 e  i  b  o  h  j  e  C  h  6  u  e  g  a  h  f
 ```
 
-There they are. Hardcoded in the firmware as plain ASCII null-terminated strings, sitting adjacent to each other in the read-only data section — the IV at `0xD529`, followed by a NUL terminator byte at `0xD539`, then the key at `0xD53A`:
+Both are plain ASCII null-terminated strings, adjacent in the read-only data section — the IV at `0xD529`, followed by a NUL terminator at `0xD539`, then the key at `0xD53A`:
 
 ```
 AES-128-CBC Key: eibohjeCh6uegahf
 AES-128-CBC IV:  miefeinuShu9eilo
 ```
 
-Both are 16-character strings that look like randomly generated passphrases — pronounceable but meaningless. The same key and IV are used for all voice guidance packs across all WH-1000XM4 units. A single, static, symmetric key protecting every language variant distributed via CDN.
+Both are 16-character strings that look like randomly generated passphrases. The same key and IV are used for all voice guidance packs across all WH-1000XM4 units.
 
 ---
 
@@ -378,9 +378,9 @@ Sony uses two completely independent encryption keys for their update infrastruc
 | Manifests | AES-128-ECB  | Android APK        | `4fa27999ffd08b1fe4d260d57b6d3c17` |
 | Voice packs | AES-128-CBC | Headphone firmware | `eibohjeCh6uegahf` (+ IV)         |
 
-The manifest key protects the update metadata — which files exist, their URLs, and integrity hashes. The voice pack key protects the actual audio content. Neither key protects the other, so compromising one layer does not directly compromise the other. In practice, of course, the manifest key is sufficient to discover all download URLs, and the voice pack key is sufficient to decrypt them — meaning both layers must hold for the system to provide any confidentiality.
+The manifest key protects the update metadata — which files exist, their URLs, and integrity hashes. The voice pack key protects the actual audio content.
 
-Notably, the actual headphone firmware updates are not served through this CDN path at all. They are gated behind an authenticated configuration service (`hpc-cfgdst-ore-prd.pdp.bda.ndmdhs.com`) that requires app-specific headers from the Sony Sound Connect app — a meaningfully stronger distribution model than the unauthenticated voice pack CDN.
+The actual headphone firmware updates are not served through this CDN path. They go through an authenticated configuration service (`hpc-cfgdst-ore-prd.pdp.bda.ndmdhs.com`) that requires app-specific headers from the Sony Sound Connect app.
 
 ---
 
@@ -390,7 +390,7 @@ To summarize the system as observed:
 
 - The RACE protocol, part of Airoha's SDK, exposes flash and RAM read commands over BLE GATT. These are factory/debug commands that are present in the production firmware.
 - The AES-128-CBC key and IV are stored as plaintext ASCII strings in the CM4 firmware's `.rodata` section. The same key and IV are used across all WH-1000XM4 units and all language packs.
-- The same IV is reused for every file encrypted with the same key (standard CBC practice would use a random IV per operation).
+- The same IV is reused for every file encrypted with the same key.
 - The voice pack `.bin` files are hosted on Sony's CDN without authentication — the URLs follow a predictable pattern.
 - The CDN manifests use a separate AES-128-ECB key, embedded in the Android companion app.
 - Actual firmware updates (as opposed to voice packs) are distributed through a different, authenticated service.
@@ -410,9 +410,7 @@ Starting from a pair of headphones, a BLE adapter, and an AI coding agent, the p
 5. Decrypted the CDN manifests using a second key found in the Android companion app
 6. Decrypted and decompressed all ten language packs into individual MP3 files
 
-The entire chain requires no specialized hardware, no soldering, no JTAG, and no exploitation of memory corruption. The heavy lifting — disassembly, binary analysis, scripting the decryption pipeline — was done by Ampcode with me steering the investigation. Most of the work that would traditionally require deep embedded systems expertise was handled through iterative prompting: "find the AES S-box", "trace the cross-references from this string", "write a decryption script for this format."
-
-That's arguably the more interesting takeaway here: the barrier to this kind of analysis has dropped substantially. What used to require specialized RE skills and days of manual work in Ghidra can now be done in an afternoon by someone who knows what questions to ask.
+No specialized hardware, no soldering, no JTAG. The heavy lifting — disassembly, binary analysis, scripting — was done by Ampcode with me steering. What would traditionally take days of manual work in Ghidra was done in an afternoon through iterative prompting.
 
 The key and IV, for reference:
 
