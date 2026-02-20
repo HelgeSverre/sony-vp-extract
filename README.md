@@ -1,9 +1,10 @@
 # Sony WH-1000XM4 Voice Pack Extractor
 
-![Sony WH-1000XM4](https://img.shields.io/badge/Sony%20WH--1000XM4-000000?style=flat-square&logo=sony&logoColor=white)
-![Voice Pack Extractor](https://img.shields.io/badge/Voice%20Pack%20Extractor-1a1a2e?style=flat-square&logo=headphones&logoColor=e8c547)
-![RACE Protocol](https://img.shields.io/badge/Airoha%20RACE%20Protocol-0082FC?style=flat-square&logo=bluetooth&logoColor=white)
-![License](https://img.shields.io/badge/MIT-222?style=flat-square)
+![Sony WH-1000XM4](https://img.shields.io/badge/Sony%20WH--1000XM4-000000?style=flat&logo=sony&logoColor=white)
+![Voice Pack Extractor](https://img.shields.io/badge/Voice%20Pack%20Extractor-1a1a2e?style=flat&logo=headphones&logoColor=e8c547)
+![RACE Protocol](https://img.shields.io/badge/Airoha%20RACE%20Protocol-0082FC?style=flat&logo=bluetooth&logoColor=white)
+[![Amp](https://img.shields.io/badge/Amp%20Code-191C19.svg?logo=data:image/svg%2bxml;base64,PHN2ZyB3aWR0aD0iMjEiIGhlaWdodD0iMjEiIHZpZXdCb3g9IjAgMCAyMSAyMSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMuNzY4NzkgMTguMzAxNUw4LjQ5ODM5IDEzLjUwNUwxMC4yMTk2IDIwLjAzOTlMMTIuNzIgMTkuMzU2MUwxMC4yMjg4IDkuODY3NDlMMC44OTA4NzYgNy4zMzg0NEwwLjIyNTk0IDkuODkzMzFMNi42NTEzNCAxMS42Mzg4TDEuOTQxMzggMTYuNDI4MkwzLjc2ODc5IDE4LjMwMTVaIiBmaWxsPSIjRjM0RTNGIi8+CjxwYXRoIGQ9Ik0xNy40MDc0IDEyLjc0MTRMMTkuOTA3OCAxMi4wNTc1TDE3LjQxNjcgMi41Njg5N0w4LjA3ODczIDAuMDM5OTI0Nkw3LjQxMzggMi41OTQ4TDE1LjI5OTIgNC43MzY4NUwxNy40MDc0IDEyLjc0MTRaIiBmaWxsPSIjRjM0RTNGIi8+CjxwYXRoIGQ9Ik0xMy44MTg0IDE2LjM4ODNMMTYuMzE4OCAxNS43MDQ0TDEzLjgyNzYgNi4yMTU4OEw0LjQ4OTcxIDMuNjg2ODNMMy44MjQ3NyA2LjI0MTcxTDExLjcxMDEgOC4zODM3NkwxMy44MTg0IDE2LjM4ODNaIiBmaWxsPSIjRjM0RTNGIi8+Cjwvc3ZnPg==&style=flat)](https://ampcode.com/@helgesverre)
+![License: MIT](https://img.shields.io/badge/License-MIT-007ACC.svg?style=flat)
 
 Decrypt and extract the voice guidance MP3 prompts from Sony WH-1000XM4 encrypted firmware files.
 
