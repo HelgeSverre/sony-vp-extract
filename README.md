@@ -16,8 +16,8 @@ The AES-128-CBC key was extracted by dumping the headphones' Airoha MT2811 firmw
 # Install Bun (if not already installed)
 curl -fsSL https://bun.sh/install | bash
 
-git clone https://github.com/helgesverre/reverse-sony-headphones.git
-cd reverse-sony-headphones
+git clone https://github.com/HelgeSverre/sony-vp-extract.git
+cd sony-vp-extract
 bun install
 
 # Downloads from Sony CDN automatically, then extracts
